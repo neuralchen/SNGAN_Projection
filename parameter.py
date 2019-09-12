@@ -2,7 +2,7 @@
 #  script name  : parameter.py
 #  author       : Chen Xuanhong
 #  created time : 2019/9/11 22:36
-#  modification time ：2019/9/11 22:36
+#  modification time ：2019/9/12 10:27
 #  modified by  : Chen Xuanhong
 ######################################################################
 
@@ -15,19 +15,23 @@ def getParameters():
 
     parser = argparse.ArgumentParser()
 
+    # Training information
+    parser.add_argument('--version', type=str, default='sagan_cifar10_6')
+
     # Model hyper-parameters
-    parser.add_argument('--model', type=str, default='sagan', choices=['sagan', 'qgan'])
+    parser.add_argument('--cGAN', type=str2bool, default=True)
     parser.add_argument('--adv_loss', type=str, default='hinge', choices=['wgan-gp', 'hinge'])
     parser.add_argument('--imsize', type=int, default=32)
-    parser.add_argument('--g_num', type=int, default=5)
     parser.add_argument('--z_dim', type=int, default=128)
     parser.add_argument('--g_conv_dim', type=int, default=64)
     parser.add_argument('--d_conv_dim', type=int, default=64)
-    parser.add_argument('--version', type=str, default='sagan_cifar10_6')
+    parser.add_argument('--gen_distribution', '-gd', type=str, default='normal',
+                        help='Input noise distribution: normal (default) or uniform.')
+    parser.add_argument('--gen_bottom_width', '-gbw', type=int, default=4,
+                        help='Initial size of hidden variable of generator. default: 4')
 
     # Training setting
     parser.add_argument('--total_step', type=int, default=1000000, help='how many times to update the generator')
-    parser.add_argument('--d_iters', type=float, default=5)
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--g_lr', type=float, default=0.0001)
@@ -37,7 +41,8 @@ def getParameters():
     parser.add_argument('--beta2', type=float, default=0.9)
 
     # using pretrained
-    parser.add_argument('--pretrained_model', type=int, default=None)
+    parser.add_argument('--use_pretrained_model', type=str2bool, default=False)
+    parser.add_argument('--chechpoint_step', type=int, default=None)
 
     # Misc
     parser.add_argument('--train', type=str2bool, default=True)
@@ -60,6 +65,6 @@ def getParameters():
     parser.add_argument('--metric_caculation_step', type=int, default=2000)
     parser.add_argument('--caculate_FID', type=str2bool, default=True)
     parser.add_argument('--num_inception_images', type=int, default=200)
-    parser.add_argument('--test_images_num', type=int, default=200)
+    parser.add_argument('--metric_images_num', type=int, default=200)
 
     return parser.parse_args()

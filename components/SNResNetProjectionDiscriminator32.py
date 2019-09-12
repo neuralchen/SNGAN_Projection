@@ -1,5 +1,5 @@
 ######################################################################
-#  script name  : SNResNetProjectionDiscriminator.py
+#  script name  : SNResNetProjectionDiscriminator32.py
 #  author       : Chen Xuanhong
 #  created time : 2019/9/12 01:19
 #  modification time ：2019/9/12 01:19
