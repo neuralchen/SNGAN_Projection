@@ -29,6 +29,8 @@ def getParameters():
                         help='Input noise distribution: normal (default) or uniform.')
     parser.add_argument('--gen_bottom_width', '-gbw', type=int, default=4,
                         help='Initial size of hidden variable of generator. default: 4')
+    parser.add_argument('--seed', type=int, default=46,
+                        help='Random seed. default: 46 (derived from Nogizaka46)')
 
     # Training setting
     parser.add_argument('--total_step', type=int, default=1000000, help='how many times to update the generator')
