@@ -57,7 +57,6 @@ def getParameters():
     parser.add_argument('--log_path', type=str, default='./logs')
     parser.add_argument('--model_save_path', type=str, default='./models')
     parser.add_argument('--sample_path', type=str, default='./samples')
-    parser.add_argument('--attn_path', type=str, default='./attn')
     parser.add_argument('--FID_mean_cov', type=str, default='./datasetMoment/cifar10/')
 
     # Step size

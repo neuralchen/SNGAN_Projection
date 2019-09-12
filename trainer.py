@@ -38,48 +38,51 @@ class Trainer(object):
         self.data_loader = data_loader
 
         # exact model and loss
-        self.model = config.model
+        self.cGAN = config.cGAN
         self.adv_loss = config.adv_loss
 
         # Model hyper-parameters
-        self.imsize = config.imsize
-        self.g_num = config.g_num
-        self.z_dim = config.z_dim
+        self.imsize     = config.imsize
+        self.g_num      = config.g_num
+        self.z_dim      = config.z_dim
         self.g_conv_dim = config.g_conv_dim
         self.d_conv_dim = config.d_conv_dim
-        self.parallel = config.parallel
+        self.parallel   = config.parallel
+        self.seed       = config.seed
 
-        self.lambda_gp = config.lambda_gp
+        self.gen_distribution = config.gen_distribution
+        self.gen_bottom_width = config.gen_bottom_width
+
         self.total_step = config.total_step
-        self.d_iters = config.d_iters
         self.batch_size = config.batch_size
-        self.num_workers = config.num_workers
-        self.g_lr = config.g_lr
-        self.d_lr = config.d_lr
-        self.lr_decay = config.lr_decay
-        self.beta1 = config.beta1
-        self.beta2 = config.beta2
-        self.pretrained_model = config.pretrained_model
+        self.num_workers= config.num_workers
+        self.g_lr       = config.g_lr
+        self.d_lr       = config.d_lr
+        self.lr_decay   = config.lr_decay
+        self.beta1      = config.beta1
+        self.beta2      = config.beta2
 
-        self.dataset = config.dataset
-        self.use_tensorboard = config.use_tensorboard
-        self.image_path = config.image_path
-        self.log_path = config.log_path
-        self.model_save_path = config.model_save_path
-        self.sample_path = config.sample_path
-        self.log_step = config.log_step
-        self.sample_step = config.sample_step
-        self.model_save_step = config.model_save_step
+        self.chechpoint_step        = config.chechpoint_step
+        self.use_pretrained_model   = config.use_pretrained_model
+
+        self.dataset        = config.dataset
+        self.use_tensorboard= config.use_tensorboard
+        self.image_path     = config.image_path
+        self.log_path       = config.log_path
+        self.model_save_path= config.model_save_path
+        self.sample_path    = config.sample_path
+        self.log_step       = config.log_step
+        self.sample_step    = config.sample_step
+        self.model_save_step= config.model_save_step
         self.metric_caculation_step = config.metric_caculation_step
-        self.version = config.version
-        self.caculate_FID = config.caculate_FID
+        self.version        = config.version
+        self.caculate_FID   = config.caculate_FID
 
         # Path
-        self.log_path = os.path.join(config.log_path, self.version)
-        self.summary_path = self.log_path
-        self.sample_path = os.path.join(config.sample_path, self.version)
-        self.model_save_path = os.path.join(config.model_save_path, self.version)
-
+        self.log_path       = os.path.join(config.log_path, self.version)
+        self.summary_path   = self.log_path
+        self.sample_path    = os.path.join(config.sample_path, self.version)
+        self.model_save_path= os.path.join(config.model_save_path, self.version)
         
         self.build_model()
         self.reporter.writeConfig(config)
@@ -246,8 +249,6 @@ class Trainer(object):
                 self.writer.add_scalar('log/g_loss_fake', g_loss_fake.item(), (step + 1))
  
             if (step + 1) % self.sample_step == 0:
-
-                # fake_images,_,_= self.G(fixed_z)
                 fake_images = self.G(fixed_z)
 
                 save_image(denorm(fake_images.data),
@@ -272,9 +273,6 @@ class Trainer(object):
                 print("FID is %.3f"%FID)
                 self.writer.add_scalar('metric/FID', FID, (step + 1))
                 self.reporter.writeTrainLog(step+1,"Current FID is %.4f"%FID)
-                # with open(self.report_file,'a') as logf:
-                #     timestamp = datetime.datetime.strftime(datetime.datetime.now(),'%Y-%m-%d %H:%M:%S')
-                #     logf.writelines("Time-[%s]-Step-[%d] current FID is %.4f\n"%(timestamp,step+1,FID))
 
     def build_model(self):
 

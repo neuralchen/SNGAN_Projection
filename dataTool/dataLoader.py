@@ -1,3 +1,11 @@
+######################################################################
+#  script name  : dataLoader.py
+#  author       : Chen Xuanhong
+#  created time : 2019/9/12 12:36
+#  modification time ：2019/9/12 12:36
+#  modified by  : Chen Xuanhong
+######################################################################
+
 import torch
 import torchvision.datasets as dsets
 from torchvision import transforms
