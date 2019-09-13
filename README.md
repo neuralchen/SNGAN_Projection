@@ -20,12 +20,10 @@ There are two to run the training script:
 | --version  | Experiment name |
 | --train  | Set the model stage, Ture---training stage; False---testing stage |
 | --experiment_description  | Descriptive text for this experiment  |
-
 | --total_step  | Totally training step |
 | --batch_size  | Batch size |
 | --g_lr  | Learning rate of generator |
 | --d_lr  | Learning rate of discriminator |
-
 | --parallel  | Enable the parallel training |
 | --dataset  | Set the dataset name,lsun,celeb,cifar10 |
 | --cuda  | Set GPU device number |
