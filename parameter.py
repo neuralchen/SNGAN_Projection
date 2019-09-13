@@ -16,9 +16,9 @@ def getParameters():
     parser = argparse.ArgumentParser()
 
     # Training information
-    parser.add_argument('--version', type=str, default='project_1')
+    parser.add_argument('--version', type=str, default='project_3')
     parser.add_argument('--train', type=str2bool, default=True)
-    parser.add_argument('--experiment_description', type=str, default="测试projection D implementation")
+    parser.add_argument('--experiment_description', type=str, default="测试G训1次D训5次")
 
     # Model hyper-parameters
     parser.add_argument('--cGAN', type=str2bool, default=True)
@@ -40,10 +40,12 @@ def getParameters():
     parser.add_argument('--batch_size', type=int, default=64)
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--g_lr', type=float, default=0.0001)
-    parser.add_argument('--d_lr', type=float, default=0.0004)
+    parser.add_argument('--d_lr', type=float, default=0.0001)
     parser.add_argument('--lr_decay', type=float, default=0.95)
     parser.add_argument('--beta1', type=float, default=0.0)
     parser.add_argument('--beta2', type=float, default=0.9)
+    parser.add_argument('--D_step', type=int, default=5)
+    parser.add_argument('--G_step', type=int, default=1)
 
     # using pretrained
     parser.add_argument('--use_pretrained_model', type=str2bool, default=False)

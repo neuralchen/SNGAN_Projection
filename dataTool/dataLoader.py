@@ -2,7 +2,7 @@
 #  script name  : dataLoader.py
 #  author       : Chen Xuanhong
 #  created time : 2019/9/12 12:36
-#  modification time ：2019/9/13 11:47
+#  modification time ：2019/9/13 16:47
 #  modified by  : Chen Xuanhong
 ######################################################################
 
@@ -46,7 +46,7 @@ class DataLoader():
         return dataset
     
     def loadCifar10(self):
-        transforms = self.transform(True, True, True, True)
+        transforms = self.transform(False, True, True, False)
         trainset = dsets.CIFAR10(root=self.path+'/cifar10', train=True,
                                         download=True, transform=transforms)
         return trainset

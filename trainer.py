@@ -69,7 +69,6 @@ class Trainer(object):
         self.use_pretrained_model   = config.use_pretrained_model
 
         self.dataset        = config.dataset
-        self.use_tensorboard= config.use_tensorboard
         self.image_path     = config.image_path
         self.log_path       = config.log_path
         self.model_save_path= config.model_save_path
@@ -79,6 +78,8 @@ class Trainer(object):
         self.model_save_step= config.model_save_step
         self.version        = config.version
         self.caculate_FID   = config.caculate_FID
+        self.DStep          = config.D_step
+        self.GStep          = config.G_step 
 
         self.metric_caculation_step = config.metric_caculation_step
 
@@ -104,11 +105,10 @@ class Trainer(object):
         vise_graph = make_dot(self.G(z,c), params=dict(self.G.named_parameters()))
         vise_graph.view(self.log_path+"/Generator")
         vise_graph = make_dot(self.D(y,c), params=dict(self.D.named_parameters()))
-        vise_graph.view(self.log_path+"/Discriminator")
+        vise_graph.view(self.log_path+"/Discriminator",quiet=False,quiet_view=False)
         del z
         del c
         del y
-            # self.writer.add_graph(self.D)
 
         # Start with trained model
         if self.use_pretrained_model:
@@ -147,48 +147,56 @@ class Trainer(object):
         # Start time
         start_time = time.time()
         self.reporter.writeInfo("Start to train the model")
+        dstepCounter= 0
+        gstepCounter= 0
         for step in range(start, self.total_step):
             # ================== Train D ================== #
             self.D.train()
             self.G.train()
+            if dstepCounter<self.DStep:
+                try:
+                    realImages, realLabel = next(data_iter)
+                except:
+                    data_iter = iter(self.data_loader)
+                    realImages, realLabel = next(data_iter)
 
-            try:
-                realImages, realLabel = next(data_iter)
-            except:
-                data_iter = iter(self.data_loader)
-                realImages, realLabel = next(data_iter)
+                # Compute loss with real images
+                realImages  = realImages.to(self.device)
+                realLabel   = realLabel.to(self.device).long()
+                d_out_real  = self.D(realImages,realLabel)
+                d_loss_real = torch.nn.ReLU()(1.0 - d_out_real).mean()
 
-            # Compute loss with real images
-            realImages  = realImages.to(self.device)
-            realLabel   = realLabel.to(self.device).long()
-            d_out_real  = self.D(realImages,realLabel)
-            d_loss_real = torch.nn.ReLU()(1.0 - d_out_real).mean()
+                # apply Gumbel Softmax
+                runingZ.sample_()
+                runingLabel.sample_()
+                fake_images = self.G(runingZ,runingLabel)
+                d_out_fake  = self.D(fake_images,runingLabel)
+                d_loss_fake = torch.nn.ReLU()(1.0 + d_out_fake).mean()
+                # Backward + Optimize
+                d_loss      = d_loss_real + d_loss_fake
+                self.reset_grad()
+                d_loss.backward()
+                self.d_optimizer.step()
+                dstepCounter += 1
+            else:
+                # ================== Train G and gumbel ================== #
+                # Create random noise
+                runingZ.sample_()
+                runingLabel.sample_()
+                fake_images = self.G(runingZ,runingLabel)
 
-            # apply Gumbel Softmax
-            runingZ.sample_()
-            runingLabel.sample_()
-            fake_images = self.G(runingZ,runingLabel)
-            d_out_fake  = self.D(fake_images,runingLabel)
-            d_loss_fake = torch.nn.ReLU()(1.0 + d_out_fake).mean()
-            # Backward + Optimize
-            d_loss      = d_loss_real + d_loss_fake
-            self.reset_grad()
-            d_loss.backward()
-            self.d_optimizer.step()
+                # Compute loss with fake images
+                g_out_fake  = self.D(fake_images,runingLabel)
+                g_loss_fake = - g_out_fake.mean()
+
+                self.reset_grad()
+                g_loss_fake.backward()
+                self.g_optimizer.step()
+                gstepCounter += 1
             
-            # ================== Train G and gumbel ================== #
-            # Create random noise
-            runingZ.sample_()
-            runingLabel.sample_()
-            fake_images = self.G(runingZ,runingLabel)
-
-            # Compute loss with fake images
-            g_out_fake  = self.D(fake_images,runingLabel)
-            g_loss_fake = - g_out_fake.mean()
-
-            self.reset_grad()
-            g_loss_fake.backward()
-            self.g_optimizer.step()
+            if gstepCounter==self.GStep:
+                dstepCounter = 0
+                gstepCounter = 0
 
 
             # Print out log info

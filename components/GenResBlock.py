@@ -14,7 +14,7 @@ from components.CategoricalConditionalBatchNorm2d import CategoricalConditionalB
 
 def _upsample(x):
     h, w = x.size()[2:]
-    return F.interpolate(x, size=(h * 2, w * 2), mode='bilinear')
+    return F.interpolate(x, size=(h * 2, w * 2))
 
 class GenResBlock(nn.Module):
 
