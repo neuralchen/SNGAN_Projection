@@ -2,7 +2,7 @@
 #  script name  : trainer.py
 #  author       : Chen Xuanhong
 #  created time : 2019/9/11 22:36
-#  modification time ：2019/9/11 22:36
+#  modification time ：2019/9/13 11:35
 #  modified by  : Chen Xuanhong
 ######################################################################
 
@@ -18,13 +18,13 @@ from torchvision.utils import save_image
 
 from utilities.Utilities import *
 from tensorboardX import SummaryWriter
-from utilities.DistributionClass import prepare_z
 from utilities.Reporter import Reporter
 import utilities.Sampler as Sampler
 
-from metric.FID import *
 from torchviz import make_dot
-from cifar10_model_ws import Generator, Discriminator
+from components.GenResNet32 import ResNetGenerator
+from components.SNResNetProjectionDiscriminator32 import SNResNetProjectionDiscriminator
+import metrics.FID as FIDCaculator
 #from inceptionScoreMetricClass import inceptionScoreMetricClass
 
 
@@ -43,12 +43,14 @@ class Trainer(object):
 
         # Model hyper-parameters
         self.imsize     = config.imsize
-        self.g_num      = config.g_num
         self.z_dim      = config.z_dim
         self.g_conv_dim = config.g_conv_dim
         self.d_conv_dim = config.d_conv_dim
+        self.n_classes  = config.n_class if config.cGAN else 0
         self.parallel   = config.parallel
         self.seed       = config.seed
+        self.device     = torch.device('cuda:%d'%config.cuda)
+        self.GPUs       = config.GPUs
 
         self.gen_distribution = config.gen_distribution
         self.gen_bottom_width = config.gen_bottom_width
@@ -62,6 +64,7 @@ class Trainer(object):
         self.beta1      = config.beta1
         self.beta2      = config.beta2
 
+        self.use_pretrained_model   = config.use_pretrained_model
         self.chechpoint_step        = config.chechpoint_step
         self.use_pretrained_model   = config.use_pretrained_model
 
@@ -74,9 +77,10 @@ class Trainer(object):
         self.log_step       = config.log_step
         self.sample_step    = config.sample_step
         self.model_save_step= config.model_save_step
-        self.metric_caculation_step = config.metric_caculation_step
         self.version        = config.version
         self.caculate_FID   = config.caculate_FID
+
+        self.metric_caculation_step = config.metric_caculation_step
 
         # Path
         self.log_path       = os.path.join(config.log_path, self.version)
@@ -86,146 +90,101 @@ class Trainer(object):
         
         self.build_model()
         self.reporter.writeConfig(config)
-        # with open(self.report_file,'w') as logf:
-        #     logf.writelines("The training process is start from %s\n"%datetime.datetime.strftime(datetime.datetime.now(),'%Y-%m-%d %H:%M:%S'))
-        #     i = 1
-        #     for item in config.__dict__.items():
-        #         text = "[%d] %s--%s\n"%(i,item[0],str(item[1]))
-        #         logf.writelines(text)
-        #         i+=1
         self.reporter.writeModel(self.G.__str__())
         self.reporter.writeModel(self.D.__str__())
-            # logf.writelines(self.G.__str__()+"\n")
-            # logf.writelines(self.D.__str__()+"\n")
-        # Metric noise sampling
         if self.caculate_FID:
-            z_sampler = prepare_z(self.batch_size,self.z_dim)
-            sample = functools.partial(Sampler.sample,G=self.G,z_=z_sampler, parallel=self.parallel)
-            self.get_inception_metrics = prepare_inception_metrics(config.FID_mean_cov,sample,config.num_inception_images)
+            z_sampler,c_sampler = Sampler.prepare_z_c(self.batch_size,self.z_dim,self.n_classes,device=self.device)
+            gsampler = functools.partial(Sampler.sampleG,G=self.G,z_=z_sampler,c_=c_sampler, parallel=self.parallel)
+            self.get_inception_metrics = FIDCaculator.prepare_inception_metrics(config.FID_mean_cov,gsampler,config.metric_images_num)
 
-        if self.use_tensorboard:
-            self.writer = SummaryWriter(log_dir=self.summary_path)
-            z = tensor2var(torch.randn(self.batch_size, self.z_dim))
-            # self.writer.add_graph(self.G,z)
-            y = tensor2var(torch.randn(self.batch_size,3,self.imsize,self.imsize))
-            # self.writer.add_graph(self.D,y)
-            vise_graph = make_dot(self.G(z), params=dict(self.G.named_parameters()))
-            vise_graph.view(self.log_path+"/Generator")
-            vise_graph = make_dot(self.D(y), params=dict(self.D.named_parameters()))
-            vise_graph.view(self.log_path+"/Discriminator")
-            del z
-            del y
+        self.writer = SummaryWriter(log_dir=self.summary_path)
+        z = torch.zeros(1, self.z_dim).to(self.device)
+        c = torch.zeros(1).long().to(self.device)
+        y = torch.zeros(1,3,self.imsize,self.imsize).to(self.device)
+        vise_graph = make_dot(self.G(z,c), params=dict(self.G.named_parameters()))
+        vise_graph.view(self.log_path+"/Generator")
+        vise_graph = make_dot(self.D(y,c), params=dict(self.D.named_parameters()))
+        vise_graph.view(self.log_path+"/Discriminator")
+        del z
+        del c
+        del y
             # self.writer.add_graph(self.D)
 
         # Start with trained model
-        if self.pretrained_model:
+        if self.use_pretrained_model:
             self.load_pretrained_model()
+    
+    def build_model(self):
+        self.G = ResNetGenerator(self.g_conv_dim, self.z_dim, self.gen_bottom_width,
+                            num_classes=self.n_classes).to(self.device)
+        self.D = SNResNetProjectionDiscriminator(self.d_conv_dim, self.n_classes).to(self.device)
+        if self.parallel:
+            self.G = nn.DataParallel(self.G,device_ids=self.GPUs)
+            self.D = nn.DataParallel(self.D,device_ids=self.GPUs)
+        # Loss and optimizer
+        self.g_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.G.parameters()), self.g_lr, [self.beta1, self.beta2])
+        self.d_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.D.parameters()), self.d_lr, [self.beta1, self.beta2])
 
     def train(self):
 
         # Data iterator
         data_iter = iter(self.data_loader)
-       
-        # step_per_epoch = len(self.data_loader)
-
         model_save_step = self.model_save_step
 
         # Fixed input for debugging
-        fixed_z = tensor2var(torch.randn(self.batch_size, self.z_dim))
+        sampleBatch = 10
+        fixed_z = torch.randn(self.n_classes*sampleBatch, self.z_dim)
+        fixed_z = fixed_z.to(self.device)
+        fixed_c = Sampler.sampleFixedLabels(self.n_classes,sampleBatch,self.device)
+
+        runingZ,runingLabel = Sampler.prepare_z_c(self.batch_size, self.z_dim, self.n_classes, device=self.device)
 
         # Start with trained model
-        if self.pretrained_model:
-            start = self.pretrained_model + 1
+        if self.use_pretrained_model:
+            start = self.chechpoint_step + 1
         else:
             start = 0
-
         # Start time
         start_time = time.time()
         self.reporter.writeInfo("Start to train the model")
         for step in range(start, self.total_step):
-
             # ================== Train D ================== #
             self.D.train()
             self.G.train()
 
             try:
-                real_images, _ = next(data_iter)
+                realImages, realLabel = next(data_iter)
             except:
                 data_iter = iter(self.data_loader)
-                real_images, _ = next(data_iter)
+                realImages, realLabel = next(data_iter)
 
             # Compute loss with real images
-            # dr1, dr2, df1, df2, gf1, gf2 are attention scores
-            real_images = tensor2var(real_images)
-            # d_out_real,dr1,dr2 = self.D(real_images)
-            d_out_real = self.D(real_images)
-           
-            if self.adv_loss == 'wgan-gp':
-                d_loss_real = - torch.mean(d_out_real)
-                
-            elif self.adv_loss == 'hinge':
-                d_loss_real = torch.nn.ReLU()(1.0 - d_out_real).mean()
-                
-                         
+            realImages  = realImages.to(self.device)
+            realLabel   = realLabel.to(self.device).long()
+            d_out_real  = self.D(realImages,realLabel)
+            d_loss_real = torch.nn.ReLU()(1.0 - d_out_real).mean()
+
             # apply Gumbel Softmax
-            z = tensor2var(torch.randn(real_images.size(0), self.z_dim))
-            # fake_images,gf1,gf2 = self.G(z)
-            fake_images = self.G(z)
-            
-            # d_out_fake,df1,df2 = self.D(fake_images)
-            d_out_fake = self.D(fake_images)
-
-            if self.adv_loss == 'wgan-gp':
-                d_loss_fake = d_out_fake.mean()
-
-            elif self.adv_loss == 'hinge':
-                d_loss_fake = torch.nn.ReLU()(1.0 + d_out_fake).mean()
-
-
+            runingZ.sample_()
+            runingLabel.sample_()
+            fake_images = self.G(runingZ,runingLabel)
+            d_out_fake  = self.D(fake_images,runingLabel)
+            d_loss_fake = torch.nn.ReLU()(1.0 + d_out_fake).mean()
             # Backward + Optimize
-            d_loss = d_loss_real + d_loss_fake
+            d_loss      = d_loss_real + d_loss_fake
             self.reset_grad()
             d_loss.backward()
             self.d_optimizer.step()
-
-
-            if self.adv_loss == 'wgan-gp':
-                # Compute gradient penalty
-                alpha = torch.rand(real_images.size(0), 1, 1, 1).cuda().expand_as(real_images)
-                interpolated = Variable(alpha * real_images.data + (1 - alpha) * fake_images.data, requires_grad=True)
-                out,_,_ = self.D(interpolated)
-
-                grad = torch.autograd.grad(outputs=out,
-                                           inputs=interpolated,
-                                           grad_outputs=torch.ones(out.size()).cuda(),
-                                           retain_graph=True,
-                                           create_graph=True,
-                                           only_inputs=True)[0]
-
-                grad = grad.view(grad.size(0), -1)
-                grad_l2norm = torch.sqrt(torch.sum(grad ** 2, dim=1))
-                d_loss_gp = torch.mean((grad_l2norm - 1) ** 2)
-
-                # Backward + Optimize
-                d_loss = self.lambda_gp * d_loss_gp
-
-                self.reset_grad()
-                d_loss.backward()
-                self.d_optimizer.step()
             
             # ================== Train G and gumbel ================== #
             # Create random noise
-            z = tensor2var(torch.randn(real_images.size(0), self.z_dim))
-            # fake_images,_,_ = self.G(z)
-            fake_images = self.G(z)
+            runingZ.sample_()
+            runingLabel.sample_()
+            fake_images = self.G(runingZ,runingLabel)
 
             # Compute loss with fake images
-            # g_out_fake,_,_ = self.D(fake_images)  # batch x n
-            g_out_fake = self.D(fake_images)
-            if self.adv_loss == 'wgan-gp':
-                g_loss_fake = - g_out_fake.mean()
-            elif self.adv_loss == 'hinge':
-                g_loss_fake = - g_out_fake.mean()
+            g_out_fake  = self.D(fake_images,runingLabel)
+            g_loss_fake = - g_out_fake.mean()
 
             self.reset_grad()
             g_loss_fake.backward()
@@ -249,22 +208,16 @@ class Trainer(object):
                 self.writer.add_scalar('log/g_loss_fake', g_loss_fake.item(), (step + 1))
  
             if (step + 1) % self.sample_step == 0:
-                fake_images = self.G(fixed_z)
-
+                fake_images = self.G(fixed_z,fixed_c)
                 save_image(denorm(fake_images.data),
-
-                           os.path.join(self.sample_path, '{}_fake.png'.format(step + 1)))
-
-
+                           os.path.join(self.sample_path, '{}_fake.png'.format(step + 1)),nrow=self.n_classes)
 
             if (step+1) % model_save_step==0:
 
                 torch.save(self.G.state_dict(),
-
                            os.path.join(self.model_save_path, '{}_G.pth'.format(step + 1)))
 
                 torch.save(self.D.state_dict(),
-
                            os.path.join(self.model_save_path, '{}_D.pth'.format(step + 1)))
             
             if (step+1) % self.metric_caculation_step == 0 and self.caculate_FID:
@@ -274,35 +227,13 @@ class Trainer(object):
                 self.writer.add_scalar('metric/FID', FID, (step + 1))
                 self.reporter.writeTrainLog(step+1,"Current FID is %.4f"%FID)
 
-    def build_model(self):
-
-        self.G = Generator(self.batch_size,self.imsize, self.z_dim, self.g_conv_dim).cuda()
-        self.D = Discriminator(self.batch_size,self.imsize, self.d_conv_dim).cuda()
-        if self.parallel:
-            self.G = nn.DataParallel(self.G)
-            self.D = nn.DataParallel(self.D)
-
-        # Loss and optimizer
-        # self.g_optimizer = torch.optim.Adam(self.G.parameters(), self.g_lr, [self.beta1, self.beta2])
-        self.g_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.G.parameters()), self.g_lr, [self.beta1, self.beta2])
-        self.d_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.D.parameters()), self.d_lr, [self.beta1, self.beta2])
-
-        self.c_loss = torch.nn.CrossEntropyLoss()
-        # print networks
-        # print(self.G)
-        # print(self.D)
-
     def load_pretrained_model(self):
         self.G.load_state_dict(torch.load(os.path.join(
-            self.model_save_path, '{}_G.pth'.format(self.pretrained_model))))
+            self.model_save_path, '{}_G.pth'.format(self.chechpoint_step))))
         self.D.load_state_dict(torch.load(os.path.join(
-            self.model_save_path, '{}_D.pth'.format(self.pretrained_model))))
-        print('loaded trained models (step: {})..!'.format(self.pretrained_model))
+            self.model_save_path, '{}_D.pth'.format(self.chechpoint_step))))
+        print('loaded trained models (step: {})..!'.format(self.chechpoint_step))
 
     def reset_grad(self):
         self.d_optimizer.zero_grad()
         self.g_optimizer.zero_grad()
-
-    def save_sample(self, data_iter):
-        real_images, _ = next(data_iter)
-        save_image(denorm(real_images), os.path.join(self.sample_path, 'real.png'))

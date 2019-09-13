@@ -12,8 +12,8 @@ import torch.nn.functional as F
 from torch.nn import init
 from torch.nn import utils
 
-from DisResBlock import DisResBlock
-from OptimizedBlock import OptimizedBlock
+from components.DisResBlock import DisResBlock
+from components.OptimizedBlock import OptimizedBlock
 
 class SNResNetProjectionDiscriminator(nn.Module):
 

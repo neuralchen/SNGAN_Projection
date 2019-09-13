@@ -6,3 +6,5 @@
 .vscode/
 checkpoints/
 data/
+logs/
+models/

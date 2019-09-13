@@ -5,19 +5,16 @@
 #  modification time ：2019/9/12 00:45
 #  modified by  : Chen Xuanhong
 ######################################################################
-import math
 
+import math
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import init
-
-from links import CategoricalConditionalBatchNorm2d
-
+from components.CategoricalConditionalBatchNorm2d import CategoricalConditionalBatchNorm2d
 
 def _upsample(x):
     h, w = x.size()[2:]
     return F.interpolate(x, size=(h * 2, w * 2), mode='bilinear')
-
 
 class GenResBlock(nn.Module):
 
@@ -25,21 +22,18 @@ class GenResBlock(nn.Module):
                  activation=F.relu, upsample=False, num_classes=0):
         super(GenResBlock, self).__init__()
 
-        self.activation = activation
-        self.upsample = upsample
-        self.learnable_sc = in_ch != out_ch or upsample
+        self.activation     = activation
+        self.upsample       = upsample
+        self.learnable_sc   = in_ch != out_ch or upsample
         if h_ch is None:
             h_ch = out_ch
         self.num_classes = num_classes
-
         # Register layrs
         self.c1 = nn.Conv2d(in_ch, h_ch, ksize, 1, pad)
         self.c2 = nn.Conv2d(h_ch, out_ch, ksize, 1, pad)
         if self.num_classes > 0:
-            self.b1 = CategoricalConditionalBatchNorm2d(
-                num_classes, in_ch)
-            self.b2 = CategoricalConditionalBatchNorm2d(
-                num_classes, h_ch)
+            self.b1 = CategoricalConditionalBatchNorm2d(num_classes, in_ch)
+            self.b2 = CategoricalConditionalBatchNorm2d(num_classes, h_ch)
         else:
             self.b1 = nn.BatchNorm2d(in_ch)
             self.b2 = nn.BatchNorm2d(h_ch)
