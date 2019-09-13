@@ -55,7 +55,6 @@ def getParameters():
     parser.add_argument('--parallel', type=str2bool, default=False)
     parser.add_argument('--GPUs', type=str, default='0', help='gpuids eg: 0,1,2,3  --parallel True  ')
     parser.add_argument('--dataset', type=str, default='cifar10', choices=['lsun', 'celeba','cifar10'])
-    parser.add_argument('--use_tensorboard', type=str2bool, default=True)
     
     # Path
     parser.add_argument('--image_path', type=str, default='D:\\Workspace\\SAGAN_WS\\data')
