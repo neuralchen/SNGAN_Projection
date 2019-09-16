@@ -33,7 +33,10 @@ There are two to run the training script:
 | --FID_mean_cov  | The root dir to dataset moments npz file |
 
 # Results
-We have reproduced the FID(in Cifar-10, best result is FID=17.2) effect reported in the paper.
+We have reproduced the FID (in Cifar-10, best result is FID=17.2) result reported in the paper.
+
+The convergence curve of FID is as follows:
+![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/fid_result.JPG)
 
 
 
