@@ -1,10 +1,7 @@
-*.jpg
-*.JPG
-*.png
-*.PNG
 *.pyc
 .vscode/
 checkpoints/
 data/
 logs/
 models/
+samples/

@@ -32,6 +32,9 @@ There are two to run the training script:
 | --image_path  | The root dir to training dataset |
 | --FID_mean_cov  | The root dir to dataset moments npz file |
 
+# Results
+We have reproduced the FID(in Cifar-10, best result is FID=17.2) effect reported in the paper.
+
 
 
 # Acknowledgement
