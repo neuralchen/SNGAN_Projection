@@ -42,23 +42,23 @@ The convergence curve of FID is as follows:
 ## CIFAR10 results
 200K:
 
-![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/fid_result.JPG)
+![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/200000_fake.png)
 
 500K:
 
-![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/fid_result.JPG)
+![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/500000_fake.png)
 
 600K:
 
-![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/fid_result.JPG)
+![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/600000_fake.png)
 
 800K:
 
-![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/fid_result.JPG)
+![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/800000_fake.png)
 
 1000K:
 
-![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/fid_result.JPG)
+![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/1000000_fake.png)
 
 
 
