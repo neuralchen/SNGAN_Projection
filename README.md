@@ -36,6 +36,7 @@ There are two to run the training script:
 We have reproduced the FID (in Cifar-10, best result is FID=17.2) result reported in the paper.
 
 The convergence curve of FID is as follows:
+
 ![image](https://github.com/XHChen0528/SNGAN_Projection_Pytorch/blob/master/figures/fid_result.JPG)
 
 
