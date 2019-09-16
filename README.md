@@ -1,5 +1,6 @@
 # GANs with spectral normalization and projection discriminator
 This is an unofficial PyTorch implementation of [sngan_projection](https://github.com/pfnet-research/sngan_projection)
+[Miyato, Takeru, and Masanori Koyama. "cGANs with projection discriminator." arXiv preprint arXiv:1802.05637 (2018).](https://arxiv.org/abs/1802.05637)
 
 # Dependencies:
 - PyTorch1.0
