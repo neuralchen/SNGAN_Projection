@@ -12,7 +12,7 @@ This is an unofficial PyTorch implementation of [sngan_projection](https://githu
 - [torchviz](https://github.com/szagoruyko/pytorchviz) pip install torchviz and [graphviz](http://www.graphviz.org/) sudo apt-get install graphviz
 
 # Usage:
-There are two to run the training script:
+There are two ways to run the training script:
 - Run the script directly (We recommend this way): `python3 main.py` or `python main.py`.
     In this way, the training parameters can be modified by modifying the `parameter.py` parameter defaults.
 
