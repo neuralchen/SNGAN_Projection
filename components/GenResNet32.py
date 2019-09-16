@@ -40,10 +40,11 @@ class ResNetGenerator(nn.Module):
                             num_classes=num_classes)
         self.b5     = nn.BatchNorm2d(num_features)
         self.conv5  = nn.Conv2d(num_features, 3, 1, 1)
+        self._initialize()
 
     def _initialize(self):
-        init.xavier_uniform_(self.l1.weight.tensor)
-        init.xavier_uniform_(self.conv7.weight.tensor)
+        init.xavier_uniform_(self.l1.weight.data)
+        init.xavier_uniform_(self.conv7.weight.data)
 
     def forward(self, z, y=None, **kwargs):
         h = self.l1(z).view(z.size(0), -1, self.bottom_width, self.bottom_width)

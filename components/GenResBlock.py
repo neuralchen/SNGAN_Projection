@@ -39,12 +39,13 @@ class GenResBlock(nn.Module):
             self.b2 = nn.BatchNorm2d(h_ch)
         if self.learnable_sc:
             self.c_sc = nn.Conv2d(in_ch, out_ch, 1)
+        self._initialize()
 
     def _initialize(self):
-        init.xavier_uniform_(self.c1.weight.tensor, gain=math.sqrt(2))
-        init.xavier_uniform_(self.c2.weight.tensor, gain=math.sqrt(2))
+        init.xavier_uniform_(self.c1.weight.data, gain=math.sqrt(2))
+        init.xavier_uniform_(self.c2.weight.data, gain=math.sqrt(2))
         if self.learnable_sc:
-            init.xavier_uniform_(self.c_sc.weight.tensor, gain=1)
+            init.xavier_uniform_(self.c_sc.weight.data, gain=1)
 
     def forward(self, x, y=None, z=None, **kwargs):
         return self.shortcut(x) + self.residual(x, y, z)
